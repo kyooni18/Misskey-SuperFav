@@ -1,0 +1,54 @@
+services:
+  web:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    networks:
+      - internal_network
+      - external_network
+    volumes:
+      - misskey-files:/misskey/files
+      - ./docker/superfavorite/default.yml:/misskey/.config/default.yml:ro
+
+  redis:
+    restart: unless-stopped
+    image: redis:7-alpine
+    networks:
+      - internal_network
+    volumes:
+      - misskey-redis:/data
+    healthcheck:
+      test: "redis-cli ping"
+      interval: 5s
+      retries: 20
+
+  db:
+    restart: unless-stopped
+    image: postgres:18-alpine
+    env_file:
+      - ./docker/superfavorite/docker.env
+    networks:
+      - internal_network
+    volumes:
+      - misskey-db:/var/lib/postgresql/data
+    healthcheck:
+      test: "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"
+      interval: 5s
+      retries: 20
+
+volumes:
+  misskey-files:
+  misskey-db:
+  misskey-redis:
+
+networks:
+  internal_network:
+    internal: true
+  external_network:
